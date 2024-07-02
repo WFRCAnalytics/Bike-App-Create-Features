@@ -1,0 +1,6 @@
+# Folders
+Default.gdb/
+Outputs/
+.ipynb_checkpoints/
+.backups/
+GpMessages/
