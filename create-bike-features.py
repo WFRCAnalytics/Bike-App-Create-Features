@@ -360,11 +360,12 @@ def determine_primary_bike_feature_and_side(row):
     return row
 
 def main():
-
+    print('begin script!')
     # create output directories    
     if not os.path.exists('Outputs'):
         os.makedirs('Outputs')
         
+    print('creating output directories...')
     outputs = ['.\\Outputs', "scratch.gdb", 'wfrc_bike_map_features.gdb', 'wfrc_bike_map_planned_features.gdb']
     gdb = os.path.join(outputs[0], outputs[1])
     gdb2 = os.path.join(outputs[0], outputs[2])
@@ -387,6 +388,7 @@ def main():
     cities = r'.\Inputs\Cities.shp'
 
     # pull down data layers from AGOL with predefined filter
+    print('retrieving data layers...')
     roads_lyr = arcpy.MakeFeatureLayer_management(roads, 'roads_lyr', where_clause=""" (((BIKE_L IS NOT NULL AND BIKE_L NOT IN ('', ' ')) OR (BIKE_R IS NOT NULL AND BIKE_R NOT IN ('', ' '))) OR ((BIKE_PLN_L IS NOT NULL AND BIKE_PLN_L NOT IN ('', ' ')) OR (BIKE_PLN_R IS NOT NULL AND BIKE_PLN_R NOT IN ('', ' ')))) """)
     trails_lyr = arcpy.MakeFeatureLayer_management(trails, 'trails_lyr', where_clause=""" DesignatedUses NOT IN ('Pedestrian') And 
                                                                                         CartoCode NOT IN ('1 - Hiking Only', '7 - Steps') """)
@@ -396,12 +398,13 @@ def main():
     arcpy.management.SelectLayerByLocation(trails_lyr, 'INTERSECT',  counties)
 
     # merge both roads and trails and add unique id
+    print('merging roads and trails...')
     bike_features = arcpy.management.Merge([trails_lyr,roads_lyr], output=os.path.join(gdb, 'bike_features'), add_source='ADD_SOURCE_INFO')
     arcpy.management.AddField(bike_features, 'UID', "LONG")
     arcpy.management.CalculateField(bike_features, "UID", '!OBJECTID!', "PYTHON3")
     bike_features_df = pd.DataFrame.spatial.from_featureclass(bike_features[0])
 
-    # spatial join for cities attribure
+    # spatial join for cities attribute
     target_features = bike_features 
     join_features = cities
     output_features = os.path.join(gdb, "bf_cities_sj")
@@ -412,12 +415,13 @@ def main():
     bf_cities_sj_df = pd.DataFrame.spatial.from_featureclass(bf_cities_sj[0])[['UID','CITY']].copy()
 
     # add directionality to line features
+    print('computing directional mean...')
     bf_dm = arcpy.stats.DirectionalMean(bike_features, os.path.join(gdb, "bike_features_directional_mean"), "DIRECTION", "uid")
     bf_dm_df = pd.DataFrame.spatial.from_featureclass(bf_dm[0])[['UID', 'CompassA']].copy()
 
     # data formatting
     bf_all = bike_features_df.merge(bf_dm_df, on='UID', how='left').merge(bf_cities_sj_df, on='UID', how='left')
-    bf_all = bf_all[['UID', 'Status','CartoCode', 'FULLNAME',  'BIKE_L','BIKE_R','BIKE_PLN_L','BIKE_PLN_R', 'MERGE_SRC', 'CompassA', 'CITY', 'County','GlobalID', 'SHAPE']]
+    bf_all = bf_all[['UID', 'Status','CartoCode', 'FULLNAME', 'PrimaryName',  'BIKE_L','BIKE_R','BIKE_PLN_L','BIKE_PLN_R', 'MERGE_SRC', 'CompassA', 'CITY', 'County','GlobalID', 'SHAPE']]
     bf_all.loc[(bf_all['MERGE_SRC'] == 'trails_lyr') & (bf_all['Status'].isin(['Future', 'Proposed', 'PROPOSED'])==False), 'BIKE_L'] = 'TrPw'
     bf_all.loc[(bf_all['MERGE_SRC'] == 'trails_lyr') & (bf_all['Status'].isin(['Future', 'Proposed', 'PROPOSED'])==False), 'BIKE_R'] = 'TrPw'
 
@@ -428,22 +432,28 @@ def main():
     # create source field
     bf_all.loc[bf_all['MERGE_SRC'].isin(['roads_lyr']) == True, 'SOURCE'] = 'Utah Roads'
     bf_all.loc[bf_all['MERGE_SRC'].isin(['trails_lyr']) == True, 'SOURCE'] = 'Trails Pathways'
+    
+    # transfer name field
+    bf_all.loc[bf_all['MERGE_SRC'].isin(['roads_lyr']) == True, 'NAME'] = bf_all['FULLNAME']
+    bf_all.loc[bf_all['MERGE_SRC'].isin(['trails_lyr']) == True, 'NAME'] = bf_all['PrimaryName']
 
     # determine the bike feature order and side
+    print('determining primary bike feature and side...')
     bf_all_processed = bf_all.apply(determine_primary_bike_feature_and_side, axis=1)
 
     # data formatting, split existing and planned features
-    bf_all_processed.rename({'CartoCode':'CARTOCODE', 'County':'COUNTY'},axis=1, inplace=True)
+    bf_all_processed.rename({'CartoCode':'CARTOCODE', 'County':'COUNTY', 'GlobalID':'SOURCE_ID'},axis=1, inplace=True)
     bf_all_processed['NOTES'] = np.nan
     planned_bf = bf_all_processed[(bf_all_processed['PlannedFacility1'] != 'NA') & (bf_all_processed['PlannedFacility2'] != 'NA')].copy()
-    planned_bf = planned_bf[['UID', 'CITY', 'COUNTY', 'FULLNAME', 'CARTOCODE', 'PlannedFacility1','PlannedFacility2', 'PlannedFacility1_Side', 'PlannedFacility2_Side', 'SOURCE', 'NOTES', 'GlobalID', 'SHAPE']].copy()
+    planned_bf = planned_bf[['UID', 'CITY', 'COUNTY', 'NAME', 'CARTOCODE', 'PlannedFacility1','PlannedFacility2', 'PlannedFacility1_Side', 'PlannedFacility2_Side', 'NOTES', 'SOURCE', 'SOURCE_ID', 'SHAPE']].copy()
     existing_bf = bf_all_processed[(bf_all_processed['Facility1'] != 'NA') & (bf_all_processed['Facility2'] != 'NA')].copy()
-    existing_bf = existing_bf[['UID', 'CITY', 'COUNTY', 'FULLNAME','CARTOCODE', 'Facility1','Facility2', 'Facility1_Side', 'Facility2_Side', 'SOURCE','NOTES', 'GlobalID', 'SHAPE']].copy()
+    existing_bf = existing_bf[['UID', 'CITY', 'COUNTY', 'NAME','CARTOCODE', 'Facility1','Facility2', 'Facility1_Side', 'Facility2_Side', 'NOTES', 'SOURCE', 'SOURCE_ID', 'SHAPE']].copy()
 
     # export as geodatabase feature class
+    print('exporting data layers...')
     planned_bf.spatial.to_featureclass(location=os.path.join(gdb3, 'planned_bike_features'), sanitize_columns=False)
     existing_bf.spatial.to_featureclass(location=os.path.join(gdb2, 'bike_features'), sanitize_columns=False)
-
+    print('end script!')
 
 if __name__ == "__main__":
     main()
