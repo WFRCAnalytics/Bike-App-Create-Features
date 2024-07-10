@@ -390,8 +390,8 @@ def main():
     # pull down data layers from AGOL with predefined filter
     print('retrieving data layers...')
     roads_lyr = arcpy.MakeFeatureLayer_management(roads, 'roads_lyr', where_clause=""" (((BIKE_L IS NOT NULL AND BIKE_L NOT IN ('', ' ')) OR (BIKE_R IS NOT NULL AND BIKE_R NOT IN ('', ' '))) OR ((BIKE_PLN_L IS NOT NULL AND BIKE_PLN_L NOT IN ('', ' ')) OR (BIKE_PLN_R IS NOT NULL AND BIKE_PLN_R NOT IN ('', ' ')))) """)
-    trails_lyr = arcpy.MakeFeatureLayer_management(trails, 'trails_lyr', where_clause=""" DesignatedUses NOT IN ('Pedestrian') And 
-                                                                                        CartoCode NOT IN ('1 - Hiking Only', '7 - Steps') """)
+    trails_lyr = arcpy.MakeFeatureLayer_management(trails, 'trails_lyr', where_clause=""" CartoCode IN ('3 - Paved Shared Use', '8 - Bridge, Tunnel', '9 - Link')
+                                                                                          """)
 
     # filter the layers by the counties of interest
     arcpy.management.SelectLayerByLocation(roads_lyr, 'INTERSECT',  counties)
