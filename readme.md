@@ -17,7 +17,6 @@ road the feature is on. The final products are 1) existing and
 - 'Facility2 (PlannedFacility2)' - secondary bike facility type
 - 'Facility1_Side (PlannedFacility1_Side)' - cardinal direction of the primary bike facility
 - 'Facility2_Side (PlannedFacility2_Side)' - cardinal direction of the secondary bike facility
-- 'STATUS' - existing or planned
 - 'NOTES' - notes field for displaying additional info or capturing comments
 - 'CARTOCODE' - cartographic code
 - 'SOURCE' - roads or trails,
