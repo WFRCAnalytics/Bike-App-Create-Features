@@ -445,9 +445,9 @@ def main():
     bf_all_processed.rename({'CartoCode':'CARTOCODE', 'County':'COUNTY', 'GlobalID':'SOURCE_ID'},axis=1, inplace=True)
     bf_all_processed['NOTES'] = np.nan
     planned_bf = bf_all_processed[(bf_all_processed['PlannedFacility1'] != 'NA') & (bf_all_processed['PlannedFacility2'] != 'NA')].copy()
-    planned_bf = planned_bf[['UID', 'CITY', 'COUNTY', 'NAME', 'CARTOCODE', 'PlannedFacility1','PlannedFacility2', 'PlannedFacility1_Side', 'PlannedFacility2_Side', 'NOTES', 'SOURCE', 'SOURCE_ID', 'SHAPE']].copy()
+    planned_bf = planned_bf[['UID', 'CITY', 'COUNTY', 'NAME', 'PlannedFacility1','PlannedFacility2', 'PlannedFacility1_Side', 'PlannedFacility2_Side', 'NOTES', 'CARTOCODE', 'SOURCE', 'SOURCE_ID', 'SHAPE']].copy()
     existing_bf = bf_all_processed[(bf_all_processed['Facility1'] != 'NA') & (bf_all_processed['Facility2'] != 'NA')].copy()
-    existing_bf = existing_bf[['UID', 'CITY', 'COUNTY', 'NAME','CARTOCODE', 'Facility1','Facility2', 'Facility1_Side', 'Facility2_Side', 'NOTES', 'SOURCE', 'SOURCE_ID', 'SHAPE']].copy()
+    existing_bf = existing_bf[['UID', 'CITY', 'COUNTY', 'NAME', 'Facility1','Facility2', 'Facility1_Side', 'Facility2_Side', 'NOTES', 'CARTOCODE', 'SOURCE', 'SOURCE_ID', 'SHAPE']].copy()
 
     # export as geodatabase feature class
     print('exporting data layers...')
