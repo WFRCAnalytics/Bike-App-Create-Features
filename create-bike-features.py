@@ -31,39 +31,39 @@ def determine_direction_from_angle(angle):
     if isinstance(angle, numbers.Number):
         
         if angle < 337.5 and angle > 292.5:
-            direction = 'NW'
+            direction = 'Northwest Side'
         elif angle == 337.5:
-            direction = 'NNW'
+            direction = 'North-Northwest Side'
         elif (angle >= 0 and angle < 22.5) or (angle > 337.5 and angle <= 360):
-            direction = 'N'
+            direction = 'North Side'
         elif angle == 22.5:
-            direction = 'NNE'
+            direction = 'North-Northeast Side'
         elif angle < 67.5 and angle > 22.5:
-            direction = 'NE'
+            direction = 'Northeast Side'
         elif angle == 67.5:
-            direction = 'ENE'
+            direction = 'East-Northeast Side'
         elif angle < 112.5 and angle > 67.5:
-            direction = 'E'
+            direction = 'East Side'
         elif angle == 112.5:
-            direction = 'ESE'
+            direction = 'East-Southeast Side'
         elif angle < 157.5 and angle > 112.5:
-            direction = 'SE'
+            direction = 'Southeast Side'
         elif angle == 157.5:
-            direction = 'SSE'
+            direction = 'South-Southeast Side'
         elif angle < 202.5 and angle > 157.5:
-            direction = 'S'
+            direction = 'South Side'
         elif angle == 202.5:
-            direction = 'SSW'
+            direction = 'South-Southwest Side'
         elif angle < 247.5 and angle > 202.5:
-            direction = 'SW'
+            direction = 'Southwest Side'
         elif angle == 247.5:
-            direction = 'WSW'
+            direction = 'West-Southwest Side'
         elif angle < 292.5 and angle > 247.5:
-            direction = 'W'
+            direction = 'West Side'
         elif angle == 292.5:
-            direction = 'WNW'
+            direction = 'West-Northwest Side'
     else:
-        direction = 'NA'
+        direction = 'Not Available'
     
     return direction    
 
@@ -71,7 +71,7 @@ def determine_primary_bike_feature_and_side(row):
 
 
     # lookup table for bike facility and rankings
-    bike_lookup = {
+    bike_facility_rank_lookup = {
     '1A':3, # 1A Cycle track, at-grade, protected with parking
     '1B':2, # 1B Cycle track, protected with barrier
     '1C':1, # 1C Cycle track, raised and curb separated (may be multiuse with peds)
@@ -92,15 +92,37 @@ def determine_primary_bike_feature_and_side(row):
     'TrPw':1 # Trail or Pathway
     }
 
+    bike_facility_name_lookup = {
+    '1A':'Cycle track, at-grade, protected with parking (1A)',
+    '1B':'Cycle track, protected with barrier (1B)',
+    '1C':'Cycle track, raised and curb separated (1C)',
+    '1D':'Cycle track, bi-directional (1D',
+    '1E':'Cycle track, center-running (1E)',
+    '2A':'Buffered bike lane (2A)',
+    '2B':'Bike lane (2B)',
+    '2C':'Bi-directional buffered bike lane (2C)',
+    '3A':'Shoulder bikeway (3A)',
+    '3B':'Marked shared roadway (3B)',
+    '3C':'Signed shared roadway (3C)',
+    '1':'Cycle track, unspecified (1)',
+    '2':'Bike lane, unspecified (2)',
+    '3':'Other bike route, unspecified (3)',
+    'PP':'Parallel Bike Path, Paved (PP)',
+    'PU':'Parallel Bike Path, Unpaved (PU)',
+    'UN':'Unknown Category (UN)',
+    'TrPw':'Trail or Pathway',
+    'NA': 'Not Available'
+    }
+
     #-----------------------------------
     # Existing Bike Facilities
     #-----------------------------------
 
     # if there are bike features on both sides
-    if row['BIKE_L'] in bike_lookup.keys() and row['BIKE_R'] in bike_lookup.keys(): 
+    if row['BIKE_L'] in bike_facility_rank_lookup.keys() and row['BIKE_R'] in bike_facility_rank_lookup.keys(): 
         # get the rank for each facility
-        bl_rank = bike_lookup[row['BIKE_L']]
-        br_rank = bike_lookup[row['BIKE_R']]
+        bl_rank = bike_facility_rank_lookup[row['BIKE_L']]
+        br_rank = bike_facility_rank_lookup[row['BIKE_R']]
 
         # if bike_left's facility is better than bike_right's or they tie
         if (bl_rank < br_rank) or (bl_rank == br_rank):
@@ -141,7 +163,7 @@ def determine_primary_bike_feature_and_side(row):
                     secondary_feature_degrees = primary_feature_degrees - 180
 
     # if bike right does not have a facility
-    elif row['BIKE_L'] in bike_lookup.keys() and row['BIKE_R'] not in bike_lookup.keys(): 
+    elif row['BIKE_L'] in bike_facility_rank_lookup.keys() and row['BIKE_R'] not in bike_facility_rank_lookup.keys(): 
 
         primary_feature = row['BIKE_L']
         secondary_feature  = "NA"
@@ -155,7 +177,7 @@ def determine_primary_bike_feature_and_side(row):
             primary_feature_degrees = 'NA'
     
     # if bike left does not have a facility
-    elif row['BIKE_R'] in bike_lookup.keys() and row['BIKE_L'] not in bike_lookup.keys(): 
+    elif row['BIKE_R'] in bike_facility_rank_lookup.keys() and row['BIKE_L'] not in bike_facility_rank_lookup.keys(): 
         
         primary_feature = row['BIKE_R']
         secondary_feature  = "NA"
@@ -174,21 +196,20 @@ def determine_primary_bike_feature_and_side(row):
          primary_feature_degrees = 'NA'
          secondary_feature_degrees = 'NA'
 
-    row['Facility1'] = primary_feature
-    row['Facility2'] = secondary_feature
+    row['Facility1'] = bike_facility_name_lookup[primary_feature]
+    row['Facility2'] = bike_facility_name_lookup[secondary_feature]
     row['Facility1_Side'] = determine_direction_from_angle(primary_feature_degrees)
     row['Facility2_Side'] = determine_direction_from_angle(secondary_feature_degrees)
-
 
     #-----------------------------------
     # Planned Bike Facilities
     #-----------------------------------
 
     # are facilities planned for both sides?
-    if row['BIKE_PLN_L'] in bike_lookup.keys() and row['BIKE_PLN_R'] in bike_lookup.keys(): 
+    if row['BIKE_PLN_L'] in bike_facility_rank_lookup.keys() and row['BIKE_PLN_R'] in bike_facility_rank_lookup.keys(): 
         
-        bl_rank = bike_lookup[row['BIKE_PLN_L']]
-        br_rank = bike_lookup[row['BIKE_PLN_R']]
+        bl_rank = bike_facility_rank_lookup[row['BIKE_PLN_L']]
+        br_rank = bike_facility_rank_lookup[row['BIKE_PLN_R']]
 
         # if bike_left's facility is better than bike_right's or they tie
         if (bl_rank < br_rank) or (bl_rank == br_rank):
@@ -230,14 +251,14 @@ def determine_primary_bike_feature_and_side(row):
                 planned_secondary_feature_degrees = planned_primary_feature_degrees - 180
 
     # if a new facility is only planned for left
-    elif row['BIKE_PLN_L'] in bike_lookup.keys() and row['BIKE_PLN_R'] not in bike_lookup.keys(): 
+    elif row['BIKE_PLN_L'] in bike_facility_rank_lookup.keys() and row['BIKE_PLN_R'] not in bike_facility_rank_lookup.keys(): 
         
-        bl_rank = bike_lookup[row['BIKE_PLN_L']]
+        bl_rank = bike_facility_rank_lookup[row['BIKE_PLN_L']]
         
         # is there an existing facility on bike right?
-        if row['BIKE_R'] in bike_lookup.keys():
+        if row['BIKE_R'] in bike_facility_rank_lookup.keys():
 
-            br_rank = bike_lookup[row['BIKE_R']]
+            br_rank = bike_facility_rank_lookup[row['BIKE_R']]
 
             # if bike_left's facility is better than bike_right's or they tie
             if (bl_rank < br_rank) or (bl_rank == br_rank):
@@ -291,14 +312,14 @@ def determine_primary_bike_feature_and_side(row):
             planned_secondary_feature_degrees = 'NA'
           
     # if a new facility is only planned for right
-    elif row['BIKE_PLN_R'] in bike_lookup.keys() and row['BIKE_PLN_L'] not in bike_lookup.keys(): 
+    elif row['BIKE_PLN_R'] in bike_facility_rank_lookup.keys() and row['BIKE_PLN_L'] not in bike_facility_rank_lookup.keys(): 
         
-        br_rank = bike_lookup[row['BIKE_PLN_R']]
+        br_rank = bike_facility_rank_lookup[row['BIKE_PLN_R']]
         
         # is there an existing facility on bike left?
-        if row['BIKE_L'] in bike_lookup.keys():
+        if row['BIKE_L'] in bike_facility_rank_lookup.keys():
 
-            bl_rank = bike_lookup[row['BIKE_L']]
+            bl_rank = bike_facility_rank_lookup[row['BIKE_L']]
 
             # if bike_left's facility is better than bike_right's or they tie
             if (bl_rank < br_rank) or (bl_rank == br_rank):
@@ -352,8 +373,8 @@ def determine_primary_bike_feature_and_side(row):
          planned_primary_feature_degrees = 'NA'
          planned_secondary_feature_degrees = 'NA'
 
-    row['PlannedFacility1'] = planned_primary_feature
-    row['PlannedFacility2'] = planned_secondary_feature
+    row['PlannedFacility1'] = bike_facility_name_lookup[planned_primary_feature]
+    row['PlannedFacility2'] = bike_facility_name_lookup[planned_secondary_feature]
     row['PlannedFacility1_Side'] = determine_direction_from_angle(planned_primary_feature_degrees)
     row['PlannedFacility2_Side'] = determine_direction_from_angle(planned_secondary_feature_degrees)
          
@@ -444,9 +465,9 @@ def main():
     # data formatting, split existing and planned features
     bf_all_processed.rename({'CartoCode':'CARTOCODE', 'County':'COUNTY', 'GlobalID':'SOURCE_ID'},axis=1, inplace=True)
     bf_all_processed['NOTES'] = np.nan
-    planned_bf = bf_all_processed[(bf_all_processed['PlannedFacility1'] != 'NA') & (bf_all_processed['PlannedFacility2'] != 'NA')].copy()
+    planned_bf = bf_all_processed[(bf_all_processed['PlannedFacility1'] != 'Not Available') & (bf_all_processed['PlannedFacility2'] != 'Not Available')].copy()
     planned_bf = planned_bf[['UID', 'CITY', 'COUNTY', 'NAME', 'PlannedFacility1','PlannedFacility2', 'PlannedFacility1_Side', 'PlannedFacility2_Side', 'NOTES', 'CARTOCODE', 'SOURCE', 'SOURCE_ID', 'SHAPE']].copy()
-    existing_bf = bf_all_processed[(bf_all_processed['Facility1'] != 'NA') & (bf_all_processed['Facility2'] != 'NA')].copy()
+    existing_bf = bf_all_processed[(bf_all_processed['Facility1'] != 'Not Available') & (bf_all_processed['Facility2'] != 'Not Available')].copy()
     existing_bf = existing_bf[['UID', 'CITY', 'COUNTY', 'NAME', 'Facility1','Facility2', 'Facility1_Side', 'Facility2_Side', 'NOTES', 'CARTOCODE', 'SOURCE', 'SOURCE_ID', 'SHAPE']].copy()
 
     # export as geodatabase feature class
