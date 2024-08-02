@@ -21,6 +21,7 @@ from arcgis.features import GeoAccessor
 from arcgis.features import GeoSeriesAccessor
 import pandas as pd
 import numbers
+import zipfile
 
 arcpy.env.overwriteOutput = True
 arcpy.env.parallelProcessingFactor = "90%"
@@ -380,6 +381,17 @@ def determine_primary_bike_feature_and_side(row):
          
     return row
 
+def zipdir(path, ziph, ext=None):
+    # ziph is zipfile handle
+    for root, dirs, files in os.walk(path):
+        if ext:
+            files = [ fi for fi in files if fi.endswith(ext) ]
+
+        for file in files:
+            ziph.write(os.path.join(root, file), 
+                       os.path.relpath(os.path.join(root, file), 
+                                       os.path.join(path, '..')))
+
 def main():
     print('begin script!')
     # create output directories    
@@ -388,17 +400,17 @@ def main():
         
     print('creating output directories...')
     outputs = ['.\\Outputs', "scratch.gdb", 'wfrc_bike_map_features.gdb', 'wfrc_bike_map_planned_features.gdb']
-    gdb = os.path.join(outputs[0], outputs[1])
-    gdb2 = os.path.join(outputs[0], outputs[2])
-    gdb3 = os.path.join(outputs[0], outputs[3])
+    scratch_gdb = os.path.join(outputs[0], outputs[1])
+    existing_features_gdb = os.path.join(outputs[0], outputs[2])
+    planned_features_gdb = os.path.join(outputs[0], outputs[3])
 
-    if not arcpy.Exists(gdb):
+    if not arcpy.Exists(scratch_gdb):
         arcpy.CreateFileGDB_management(outputs[0], outputs[1])
 
-    if not arcpy.Exists(gdb2):
+    if not arcpy.Exists(existing_features_gdb):
         arcpy.CreateFileGDB_management(outputs[0], outputs[2])
 
-    if not arcpy.Exists(gdb3):
+    if not arcpy.Exists(planned_features_gdb):
         arcpy.CreateFileGDB_management(outputs[0], outputs[3])
 
 
@@ -420,7 +432,7 @@ def main():
 
     # merge both roads and trails and add unique id
     print('merging roads and trails...')
-    bike_features = arcpy.management.Merge([trails_lyr,roads_lyr], output=os.path.join(gdb, 'bike_features'), add_source='ADD_SOURCE_INFO')
+    bike_features = arcpy.management.Merge([trails_lyr,roads_lyr], output=os.path.join(scratch_gdb, 'bike_features'), add_source='ADD_SOURCE_INFO')
     arcpy.management.AddField(bike_features, 'UID', "LONG")
     arcpy.management.CalculateField(bike_features, "UID", '!OBJECTID!', "PYTHON3")
     bike_features_df = pd.DataFrame.spatial.from_featureclass(bike_features[0])
@@ -428,7 +440,7 @@ def main():
     # spatial join for cities attribute
     target_features = bike_features 
     join_features = cities
-    output_features = os.path.join(gdb, "bf_cities_sj")
+    output_features = os.path.join(scratch_gdb, "bf_cities_sj")
     fieldmappings = arcpy.FieldMappings()
     fieldmappings.addTable(target_features)
     fieldmappings.addTable(join_features)
@@ -437,7 +449,7 @@ def main():
 
     # add directionality to line features
     print('computing directional mean...')
-    bf_dm = arcpy.stats.DirectionalMean(bike_features, os.path.join(gdb, "bike_features_directional_mean"), "DIRECTION", "uid")
+    bf_dm = arcpy.stats.DirectionalMean(bike_features, os.path.join(scratch_gdb, "bike_features_directional_mean"), "DIRECTION", "uid")
     bf_dm_df = pd.DataFrame.spatial.from_featureclass(bf_dm[0])[['UID', 'CompassA']].copy()
 
     # data formatting
@@ -472,8 +484,22 @@ def main():
 
     # export as geodatabase feature class
     print('exporting data layers...')
-    planned_bf.spatial.to_featureclass(location=os.path.join(gdb3, 'planned_bike_features'), sanitize_columns=False)
-    existing_bf.spatial.to_featureclass(location=os.path.join(gdb2, 'bike_features'), sanitize_columns=False)
+    planned_bf.spatial.to_featureclass(location=os.path.join(planned_features_gdb, 'planned_bike_features'), sanitize_columns=False)
+    existing_bf.spatial.to_featureclass(location=os.path.join(existing_features_gdb, 'bike_features'), sanitize_columns=False)
+
+    # zip the files up for AGOL
+    print('zipping files...')
+    planned_zip_name = os.path.join(outputs[0],'wfrc_bike_map_planned_features.gdb.zip')
+    existing_zip_name = os.path.join(outputs[0],'wfrc_bike_map_features.gdb.zip')
+    if os.path.exists(planned_zip_name): os.remove(planned_zip_name)
+    if os.path.exists(existing_zip_name): os.remove(existing_zip_name)
+
+    with zipfile.ZipFile(planned_zip_name,'w', zipfile.ZIP_DEFLATED) as planned_zip:
+        zipdir(planned_features_gdb, planned_zip)
+
+    with zipfile.ZipFile(existing_zip_name,'w', zipfile.ZIP_DEFLATED) as existing_zip:
+        zipdir(existing_features_gdb, existing_zip)
+
     print('end script!')
 
 if __name__ == "__main__":
