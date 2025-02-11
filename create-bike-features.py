@@ -382,7 +382,7 @@ def calc_lts(row):
 
     # Calculate level of traffic stress adapted from 
 
-    local_roads = ['11','12','13','14','15','16','17','18']
+    local_roads = ['11','12','13','14','15','16','17','18', '99']
     major_roads = ['8','9','10']
     highways = ['1','2','3','4','5','6','7']
 
@@ -399,7 +399,8 @@ def calc_lts(row):
     #==================
     # Trail & Pathway
     #==================
-    if facility_type == 'Trail or Pathway':
+    
+    if facility_type in ['Trail or Pathway', 'Parallel Bike Path, Paved (PP)', 'Parallel Bike Path, Unpaved (PU)']:
         return 0
     
     #==============
@@ -702,9 +703,10 @@ def process_data():
     bf_all_processed.rename({'CartoCode':'CARTOCODE', 'County':'COUNTY', 'GlobalID':'SOURCE_ID'},axis=1, inplace=True)
     bf_all_processed['NOTES'] = np.nan
     planned_bf = bf_all_processed[(bf_all_processed['PlannedFacility1'] != 'Not Available') & (bf_all_processed['PlannedFacility2'] != 'Not Available')].copy()
-    
     existing_bf = bf_all_processed[(bf_all_processed['Facility1'] != 'Not Available') & (bf_all_processed['Facility2'] != 'Not Available')].copy()
     
+    existing_bf.drop(['PlannedFacility1','PlannedFacility2', 'PlannedFacility1_Side', 'PlannedFacility2_Side'], axis=1, inplace=True)
+    planned_bf.drop(['Facility1','Facility2', 'Facility1_Side', 'Facility2_Side'], axis=1, inplace=True)
 
     # calculate level of traffic stress
     existing_bf["LTS_SCORE"] = existing_bf.apply(calc_lts, axis=1)
@@ -718,8 +720,11 @@ def process_data():
                     4:'4: Strong and fearless'
                 }
 
-    existing_bf["LTS_SCORE"] = existing_bf["LTS_SCORE"].replace(lts_codes)
-    planned_bf["LTS_SCORE"] = planned_bf["LTS_SCORE"].replace(lts_codes)
+    existing_bf["LTS_SCORE"] = existing_bf["LTS_SCORE"].map(lts_codes)
+    planned_bf["LTS_SCORE"] = planned_bf["LTS_SCORE"].map(lts_codes)
+
+    planned_bf.spatial.to_featureclass(location=os.path.join(scratch_gdb, 'draft_planned_bike_features'), sanitize_columns=False)
+    existing_bf.spatial.to_featureclass(location=os.path.join(scratch_gdb, 'draft_bike_features'), sanitize_columns=False)
 
     planned_bf = planned_bf[['UID', 'CITY', 'COUNTY', 'NAME', 'PlannedFacility1','PlannedFacility2', 'PlannedFacility1_Side', 'PlannedFacility2_Side', 'LTS_SCORE', 'NOTES', 'CARTOCODE', 'SOURCE', 'SOURCE_ID', 'SHAPE']].copy()
     existing_bf = existing_bf[['UID', 'CITY', 'COUNTY', 'NAME', 'Facility1','Facility2', 'Facility1_Side', 'Facility2_Side', 'LTS_SCORE','NOTES', 'CARTOCODE', 'SOURCE', 'SOURCE_ID', 'SHAPE']].copy()
