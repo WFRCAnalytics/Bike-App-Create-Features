@@ -2,7 +2,8 @@
 
 create-bike-features.py
 Josh Reynolds - jreynolds@wfrc.org
-2024-07-08
+Created: 2024-07-08
+Updated: 2025-02-10
 
 This script pulls down the most recent copies of the utah roads and 
 trails & pathways datasets (hosted by UGRC), merges and formats them, 
@@ -12,8 +13,7 @@ road the feature is on. The final products are 1) existing and
 
 '''
 
-import arcpy
-from arcpy import env
+
 import os
 import numpy as np
 from arcgis import GIS
@@ -22,13 +22,10 @@ from arcgis.features import GeoSeriesAccessor
 import pandas as pd
 import numbers
 import zipfile
-
-arcpy.env.overwriteOutput = True
-arcpy.env.parallelProcessingFactor = "90%"
-
+import sys
 
 def determine_direction_from_angle(angle):
-     
+    '''determines from cardinal direction from a provided angle'''
     if isinstance(angle, numbers.Number):
         
         if angle < 337.5 and angle > 292.5:
@@ -69,7 +66,7 @@ def determine_direction_from_angle(angle):
     return direction    
 
 def determine_primary_bike_feature_and_side(row):
-
+    ''' determines the highest level bike feature between the two sides of a road'''
 
     # lookup table for bike facility and rankings
     bike_facility_rank_lookup = {
@@ -381,6 +378,196 @@ def determine_primary_bike_feature_and_side(row):
          
     return row
 
+def calc_lts(row):
+
+    # Calculate level of traffic stress adapted from 
+
+    local_roads = ['11','12','13','14','15','16','17','18']
+    major_roads = ['8','9','10']
+    highways = ['1','2','3','4','5','6','7']
+
+    cartocode = row["CARTOCODE"]
+    aadt = row["AADT2023"]
+    speed = row["SPEED_LMT"]
+
+    if 'Facility1' in row.index.tolist():
+        facility_type = row['Facility1']
+    else:
+        facility_type = row['PlannedFacility1']
+
+    
+    #==================
+    # Trail & Pathway
+    #==================
+    if facility_type == 'Trail or Pathway':
+        return 0
+    
+    #==============
+    # Cycle Track
+    #==============
+    elif '1' in facility_type:
+        # local roads
+        if cartocode in local_roads: 
+            if aadt <= 2500:
+                if speed <= 25:
+                    return 0
+                elif speed >= 30 and speed <= 35:
+                    return 1
+                elif speed >= 40 and speed <= 45:
+                    return 2
+                elif speed >= 50:
+                    return 3
+            elif aadt >= 2500:
+                if speed <= 25:
+                    return 1
+                elif speed >= 30 and speed <= 35:
+                    return 1
+                elif speed >= 40 and speed <= 45:
+                    return 2
+                elif speed >= 50:
+                    return 3       
+        # major roads
+        elif cartocode in major_roads: 
+            if aadt <= 10000:
+                if speed <= 25:
+                    return 1
+                elif speed >= 30 and speed <= 35:
+                    return 2
+                elif speed >= 40 and speed <= 45:
+                    return 3
+                elif speed >= 50:
+                    return 3
+            elif aadt >= 10000:
+                if speed <= 25:
+                    return 1
+                elif speed >= 30 and speed <= 35:
+                    return 2
+                elif speed >= 40 and speed <= 45:
+                    return 3
+                elif speed >= 50:
+                    return 3
+        # highways    
+        elif cartocode in highways: 
+            if speed <= 25:
+                return 2
+            elif speed >= 30 and speed <= 35:
+                return 3
+            elif speed >= 40 and speed <= 45:
+                return 4
+            elif speed >= 50:
+                return 4
+        
+    #============       
+    # Bike Lane
+    #============
+    elif '2' in facility_type:
+        # local roads
+        if cartocode in local_roads: 
+            if aadt <= 2500:
+                if speed <= 25:
+                    return 1
+                elif speed >= 30 and speed <= 35:
+                    return 2
+                elif speed >= 40 and speed <= 45:
+                    return 3
+                elif speed >= 50:
+                    return 3
+            elif aadt >= 2500:
+                if speed <= 25:
+                    return 1
+                elif speed >= 30 and speed <= 35:
+                    return 2
+                elif speed >= 40 and speed <= 45:
+                    return 3
+                elif speed >= 50:
+                    return 4       
+        # major roads
+        elif cartocode in major_roads: 
+            if aadt <= 10000:
+                if speed <= 25:
+                    return 2
+                elif speed >= 30 and speed <= 35:
+                    return 2
+                elif speed >= 40 and speed <= 45:
+                    return 3
+                elif speed >= 50:
+                    return 4
+            elif aadt >= 10000:
+                if speed <= 25:
+                    return 2
+                elif speed >= 30 and speed <= 35:
+                    return 3
+                elif speed >= 40 and speed <= 45:
+                    return 4
+                elif speed >= 50:
+                    return 4
+        # highways    
+        elif cartocode in highways: 
+            if speed <= 25:
+                return 3
+            elif speed >= 30 and speed <= 35:
+                return 4
+            elif speed >= 40 and speed <= 45:
+                return 4
+            elif speed >= 50:
+                return 4
+    
+    #=============================       
+    # Shoulder & Shared Roadway
+    #=============================
+    elif '3' in facility_type:
+        # local roads
+        if cartocode in local_roads: 
+            if aadt <= 2500:
+                if speed <= 25:
+                    return 2
+                elif speed >= 30 and speed <= 35:
+                    return 2
+                elif speed >= 40 and speed <= 45:
+                    return 3
+                elif speed >= 50:
+                    return 4
+            elif aadt >= 2500:
+                if speed <= 25:
+                    return 2
+                elif speed >= 30 and speed <= 35:
+                    return 3
+                elif speed >= 40 and speed <= 45:
+                    return 3
+                elif speed >= 50:
+                    return 4       
+        # major roads
+        elif cartocode in major_roads: 
+            if aadt <= 5000:
+                if speed <= 25:
+                    return 2
+                elif speed >= 30 and speed <= 35:
+                    return 3
+                elif speed >= 40 and speed <= 45:
+                    return 4
+                elif speed >= 50:
+                    return 4
+            elif aadt >= 5000:
+                if speed <= 25:
+                    return 3
+                elif speed >= 30 and speed <= 35:
+                    return 4
+                elif speed >= 40 and speed <= 45:
+                    return 4
+                elif speed >= 50:
+                    return 4
+        # highways    
+        elif cartocode in highways: 
+            if speed <= 25:
+                return 4
+            elif speed >= 30 and speed <= 35:
+                return 4
+            elif speed >= 40 and speed <= 45:
+                return 4
+            elif speed >= 50:
+                return 4
+
+
 def zipdir(path, ziph, ext=None):
     # ziph is zipfile handle
     for root, dirs, files in os.walk(path):
@@ -392,18 +579,23 @@ def zipdir(path, ziph, ext=None):
                        os.path.relpath(os.path.join(root, file), 
                                        os.path.join(path, '..')))
 
-def main():
-    print('begin script!')
+def process_data():
+    
+    import arcpy
+    from arcpy import env
+    arcpy.env.overwriteOutput = True
+    arcpy.env.parallelProcessingFactor = "90%"
+
     # create output directories    
     if not os.path.exists('Outputs'):
         os.makedirs('Outputs')
         
-    print('creating output directories...')
+    print('--creating output directories')
     outputs = ['.\\Outputs', "scratch.gdb", 'wfrc_bike_map_features.gdb', 'wfrc_bike_map_planned_features.gdb']
     scratch_gdb = os.path.join(outputs[0], outputs[1])
     existing_features_gdb = os.path.join(outputs[0], outputs[2])
     planned_features_gdb = os.path.join(outputs[0], outputs[3])
-
+    
     if not arcpy.Exists(scratch_gdb):
         arcpy.CreateFileGDB_management(outputs[0], outputs[1])
 
@@ -417,27 +609,57 @@ def main():
     # store paths to datasets
     roads = 'https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/UtahRoads/FeatureServer/0'
     trails = 'https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/TrailsAndPathways/FeatureServer/0'
+    aadt = r'.\Inputs\AADT_Unrounded.shp'
     counties = r'.\Inputs\WFRC_MPO_AOG_Counties.shp'
     cities = r'.\Inputs\Cities.shp'
 
     # pull down data layers from AGOL with predefined filter
-    print('retrieving data layers...')
+    print('--retrieving data layers')
     roads_lyr = arcpy.MakeFeatureLayer_management(roads, 'roads_lyr', where_clause=""" (((BIKE_L IS NOT NULL AND BIKE_L NOT IN ('', ' ')) OR (BIKE_R IS NOT NULL AND BIKE_R NOT IN ('', ' '))) OR ((BIKE_PLN_L IS NOT NULL AND BIKE_PLN_L NOT IN ('', ' ')) OR (BIKE_PLN_R IS NOT NULL AND BIKE_PLN_R NOT IN ('', ' ')))) """)
-    trails_lyr = arcpy.MakeFeatureLayer_management(trails, 'trails_lyr', where_clause=""" CartoCode IN ('3 - Paved Shared Use', '8 - Bridge, Tunnel', '9 - Link')
-                                                                                          """)
+    trails_lyr = arcpy.MakeFeatureLayer_management(trails, 'trails_lyr', where_clause=""" CartoCode IN ('3 - Paved Shared Use', '8 - Bridge, Tunnel') """) # removed 9 - Link
 
     # filter the layers by the counties of interest
     arcpy.management.SelectLayerByLocation(roads_lyr, 'INTERSECT',  counties)
     arcpy.management.SelectLayerByLocation(trails_lyr, 'INTERSECT',  counties)
 
     # merge both roads and trails and add unique id
-    print('merging roads and trails...')
+    print('--merging roads and trails')
     bike_features = arcpy.management.Merge([trails_lyr,roads_lyr], output=os.path.join(scratch_gdb, 'bike_features'), add_source='ADD_SOURCE_INFO')
     arcpy.management.AddField(bike_features, 'UID', "LONG")
     arcpy.management.CalculateField(bike_features, "UID", '!OBJECTID!', "PYTHON3")
-    bike_features_df = pd.DataFrame.spatial.from_featureclass(bike_features[0])
+    
+    # Create AADT Buffer layer
+    aadt_lyr = arcpy.MakeFeatureLayer_management(aadt, 'aadt_lyr', where_clause=""" RT_Type <> 'State Route' """)
+    aadt_buffer = arcpy.analysis.Buffer(aadt_lyr, os.path.join(scratch_gdb, 'aadt_buffer'), "8 Feet", "FULL", "ROUND")
 
+    #==============================
+    # spatial join roads with AADT
+    #==============================
+
+    target_features = bike_features
+    join_features = aadt_buffer
+    output_features = os.path.join(scratch_gdb, "aadt_spatial_join")
+
+    fieldmappings = arcpy.FieldMappings()
+    fieldmappings.addTable(target_features)
+    fieldmappings.addTable(join_features)
+
+    # AADT 2023
+    fieldindex = fieldmappings.findFieldMapIndex('AADT2023')
+    fieldmap = fieldmappings.getFieldMap(fieldindex)
+    fieldmap.mergeRule = 'Max'
+    fieldmappings.replaceFieldMap(fieldindex, fieldmap)
+
+    # run the spatial join, use 'Join_Count' for number of units
+    sj = arcpy.SpatialJoin_analysis(target_features, join_features, output_features,'JOIN_ONE_TO_ONE', "KEEP_ALL", fieldmappings, "HAVE_THEIR_CENTER_IN")
+    aadt_sj_df = pd.DataFrame.spatial.from_featureclass(sj[0])[['UID', 'AADT2023']].copy() 
+
+    aadt_sj_df['AADT2023'] = aadt_sj_df['AADT2023'].fillna(-9999).astype('Int32')
+
+    #===================================
     # spatial join for cities attribute
+    #===================================
+
     target_features = bike_features 
     join_features = cities
     output_features = os.path.join(scratch_gdb, "bf_cities_sj")
@@ -448,13 +670,14 @@ def main():
     bf_cities_sj_df = pd.DataFrame.spatial.from_featureclass(bf_cities_sj[0])[['UID','CITY']].copy()
 
     # add directionality to line features
-    print('computing directional mean...')
-    bf_dm = arcpy.stats.DirectionalMean(bike_features, os.path.join(scratch_gdb, "bike_features_directional_mean"), "DIRECTION", "uid")
+    print('--computing directional mean')
+    bf_dm = arcpy.stats.DirectionalMean(bike_features, os.path.join(scratch_gdb, "bike_features_directional_mean"), "DIRECTION", "UID")
     bf_dm_df = pd.DataFrame.spatial.from_featureclass(bf_dm[0])[['UID', 'CompassA']].copy()
 
     # data formatting
-    bf_all = bike_features_df.merge(bf_dm_df, on='UID', how='left').merge(bf_cities_sj_df, on='UID', how='left')
-    bf_all = bf_all[['UID', 'Status','CartoCode', 'FULLNAME', 'PrimaryName',  'BIKE_L','BIKE_R','BIKE_PLN_L','BIKE_PLN_R', 'MERGE_SRC', 'CompassA', 'CITY', 'County','GlobalID', 'SHAPE']]
+    bike_features_df = pd.DataFrame.spatial.from_featureclass(bike_features[0])
+    bf_all = bike_features_df.merge(bf_dm_df, on='UID', how='left').merge(bf_cities_sj_df, on='UID', how='left').merge(aadt_sj_df, on='UID', how='left')
+    bf_all = bf_all[['UID', 'Status','CartoCode', 'FULLNAME', 'PrimaryName',  'BIKE_L','BIKE_R','BIKE_PLN_L','BIKE_PLN_R', 'MERGE_SRC', 'SPEED_LMT', 'AADT2023', 'CompassA', 'CITY', 'County','GlobalID', 'SHAPE']]
     bf_all.loc[(bf_all['MERGE_SRC'] == 'trails_lyr') & (bf_all['Status'].isin(['Future', 'Proposed', 'PROPOSED'])==False), 'BIKE_L'] = 'TrPw'
     bf_all.loc[(bf_all['MERGE_SRC'] == 'trails_lyr') & (bf_all['Status'].isin(['Future', 'Proposed', 'PROPOSED'])==False), 'BIKE_R'] = 'TrPw'
 
@@ -471,26 +694,60 @@ def main():
     bf_all.loc[bf_all['MERGE_SRC'].isin(['trails_lyr']) == True, 'NAME'] = bf_all['PrimaryName']
 
     # determine the bike feature order and side
-    print('determining primary bike feature and side...')
+    print('--determining primary bike feature and side')
+    bf_all = bf_all[bf_all['CompassA'].isnull() != True] # get rid of circles
     bf_all_processed = bf_all.apply(determine_primary_bike_feature_and_side, axis=1)
 
     # data formatting, split existing and planned features
     bf_all_processed.rename({'CartoCode':'CARTOCODE', 'County':'COUNTY', 'GlobalID':'SOURCE_ID'},axis=1, inplace=True)
     bf_all_processed['NOTES'] = np.nan
     planned_bf = bf_all_processed[(bf_all_processed['PlannedFacility1'] != 'Not Available') & (bf_all_processed['PlannedFacility2'] != 'Not Available')].copy()
-    planned_bf = planned_bf[['UID', 'CITY', 'COUNTY', 'NAME', 'PlannedFacility1','PlannedFacility2', 'PlannedFacility1_Side', 'PlannedFacility2_Side', 'NOTES', 'CARTOCODE', 'SOURCE', 'SOURCE_ID', 'SHAPE']].copy()
+    
     existing_bf = bf_all_processed[(bf_all_processed['Facility1'] != 'Not Available') & (bf_all_processed['Facility2'] != 'Not Available')].copy()
-    existing_bf = existing_bf[['UID', 'CITY', 'COUNTY', 'NAME', 'Facility1','Facility2', 'Facility1_Side', 'Facility2_Side', 'NOTES', 'CARTOCODE', 'SOURCE', 'SOURCE_ID', 'SHAPE']].copy()
+    
+
+    # calculate level of traffic stress
+    existing_bf["LTS_SCORE"] = existing_bf.apply(calc_lts, axis=1)
+    planned_bf["LTS_SCORE"] = planned_bf.apply(calc_lts, axis=1)
+
+    lts_codes = {
+                    0:'0: All ages and abilities',
+                    1:'1: Almost everyone',
+                    2:'2: Interested but concerned',
+                    3:'3: Enthused and confident',
+                    4:'4: Strong and fearless'
+                }
+
+    existing_bf["LTS_SCORE"] = existing_bf["LTS_SCORE"].replace(lts_codes)
+    planned_bf["LTS_SCORE"] = planned_bf["LTS_SCORE"].replace(lts_codes)
+
+    planned_bf = planned_bf[['UID', 'CITY', 'COUNTY', 'NAME', 'PlannedFacility1','PlannedFacility2', 'PlannedFacility1_Side', 'PlannedFacility2_Side', 'LTS_SCORE', 'NOTES', 'CARTOCODE', 'SOURCE', 'SOURCE_ID', 'SHAPE']].copy()
+    existing_bf = existing_bf[['UID', 'CITY', 'COUNTY', 'NAME', 'Facility1','Facility2', 'Facility1_Side', 'Facility2_Side', 'LTS_SCORE','NOTES', 'CARTOCODE', 'SOURCE', 'SOURCE_ID', 'SHAPE']].copy()
 
     # export as geodatabase feature class
-    print('exporting data layers...')
+    print('--exporting data layers')
     planned_bf.spatial.to_featureclass(location=os.path.join(planned_features_gdb, 'planned_bike_features'), sanitize_columns=False)
     existing_bf.spatial.to_featureclass(location=os.path.join(existing_features_gdb, 'bike_features'), sanitize_columns=False)
 
+    del planned_bf
+    del existing_bf
+    del planned_features_gdb
+    del existing_features_gdb
+
+    # Restart the script to zip the GDBs in a new process
+    os.execv(sys.executable, [sys.executable] + sys.argv + ["zip"])
+
+def zip_gdb():
+
     # zip the files up for AGOL
-    print('zipping files...')
+    print('--begin zipping outputs')
+    outputs = ['.\\Outputs', "scratch.gdb", 'wfrc_bike_map_features.gdb', 'wfrc_bike_map_planned_features.gdb']
+    existing_features_gdb = os.path.join(outputs[0], outputs[2])
+    planned_features_gdb = os.path.join(outputs[0], outputs[3])
     planned_zip_name = os.path.join(outputs[0],'wfrc_bike_map_planned_features.gdb.zip')
     existing_zip_name = os.path.join(outputs[0],'wfrc_bike_map_features.gdb.zip')
+    
+    # delete existing zip files
     if os.path.exists(planned_zip_name): os.remove(planned_zip_name)
     if os.path.exists(existing_zip_name): os.remove(existing_zip_name)
 
@@ -500,8 +757,15 @@ def main():
     with zipfile.ZipFile(existing_zip_name,'w', zipfile.ZIP_DEFLATED) as existing_zip:
         zipdir(existing_features_gdb, existing_zip)
 
-    print('end script!')
+    print('--finished zipping outputs')
 
-if __name__ == "__main__":
-    main()
+
+if len(sys.argv) > 1 and sys.argv[1] == "zip":
+    zip_gdb()
+    print('--scripts finished')
+else:
+    print('--begin script')
+    process_data()
+
+
 

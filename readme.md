@@ -17,6 +17,7 @@ road the feature is on. The final products are 1) existing and
 - 'Facility2 (PlannedFacility2)' - secondary bike facility type
 - 'Facility1_Side (PlannedFacility1_Side)' - cardinal direction of the primary bike facility
 - 'Facility2_Side (PlannedFacility2_Side)' - cardinal direction of the secondary bike facility
+- 'LTS_SCORE' - level of traffic stress (0: all abilities; 1: almost everyone; 2: interested, concerned; 3: enthused, confidant; 4: strong, fearless)
 - 'NOTES' - notes field for displaying additional info or capturing comments
 - 'CARTOCODE' - cartographic code
 - 'SOURCE' - roads or trails,

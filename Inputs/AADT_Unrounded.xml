@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?><MD_Metadata xmlns:gts="http://www.isotc211.org/2005/gts" xmlns:gco="http://www.isotc211.org/2005/gco" xmlns:xalan="http://xml.apache.org/xalan" xmlns:srv="http://www.isotc211.org/2005/srv" xmlns:gmx="http://www.isotc211.org/2005/gmx" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:gml="http://www.opengis.net/gml" xmlns="http://www.isotc211.org/2005/gmd">
+    <characterSet>
+        <MD_CharacterSetCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#MD_CharacterSetCode" codeListValue="utf8" codeSpace="ISOTC211/19115">utf8</MD_CharacterSetCode>
+    </characterSet>
+    <hierarchyLevel>
+        <MD_ScopeCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#MD_ScopeCode" codeListValue="dataset" codeSpace="ISOTC211/19115">dataset</MD_ScopeCode>
+    </hierarchyLevel>
+    <hierarchyLevelName>
+        <gco:CharacterString>dataset</gco:CharacterString>
+    </hierarchyLevelName>
+    <contact gco:nilReason="missing"/>
+    <dateStamp>
+        <gco:Date>2024-02-06</gco:Date>
+    </dateStamp>
+    <metadataStandardName>
+        <gco:CharacterString>ISO 19139 Geographic Information - Metadata - Implementation Specification</gco:CharacterString>
+    </metadataStandardName>
+    <metadataStandardVersion>
+        <gco:CharacterString>2007</gco:CharacterString>
+    </metadataStandardVersion>
+    <identificationInfo>
+        <MD_DataIdentification>
+            <citation>
+                <CI_Citation>
+                    <title>
+                        <gco:CharacterString>AADT Unrounded</gco:CharacterString>
+                    </title>
+                    <date gco:nilReason="missing"/>
+                </CI_Citation>
+            </citation>
+            <abstract>
+                <gco:CharacterString>This layer contains traffic statistics collected or obtained by the Transportation Monitoring Unit and developed and analyzed by the Traffic Analysis section of the Technology &amp;amp; Innovation Division at the Utah Department of Transportation. These statistics are intended for transportation management, private businesses, and public use. The traffic information is used in planning, programming, highway design, maintenance, traffic control, and general administration of highway systems.The traffic information contained represents the Annual Average Daily Traffic (AADT) on road sections of State Highway and Federal-Aided roads. These statistics are developed by the Traffic Analysis section through the use of the following count site types:1. Continuous Count Stations (CCS) provided by the Utah Department of Transportation. A statewide system of permanent vehicle count stations that collect volume, vehicle classification (length), and speed, 24 hours per day, 365 days per year.2. Short-term counts administered by the Utah Department of Transportation, each traffic section is generally counted about every 3 years for a duration of 48 hours, and seasonally factored using factors created by CCS stations.AADT represents traffic for both directions of travel. The routes are sectioned according to:a. Major intersectionsb. Sections where traffic volumes show a significant difference in AADT. Generally 20% under 5,000 AADT to 5% for over 50,000 AADT.Truck Statistics are available for State routes only. Single-Unit Truck (FHWA Vehicle Axle Classifications 4-7), and Combination Unit Trucks (FHWA UDOT Open Data Portal Vehicle Axle Classifications 8-13). The values are represented by a percentage of the AADT reported for the same year.Example: A roadway with 1000 AADT has 0.1500 SUTRK reported, is 15% of the AADT are Single-Unit Trucks (or 150 SUTRK AADT).For AADT reported as Rounded, reports and maps use the AASHTO recommendation as follows:AADT = 0 - 999: Round to the nearest 10thAADT = 1,000 - 9,999: Round to the nearest 100thAADT &amp;gt;= 10,000: Round to the nearest 1000thNOTE: If a statistical calculation is needed to be applied to the AADT, (such as when calculating Vehicle Miles Traveled), it is not recommended to use rounded AADT’s. Unrounded AADT’s and truck percentages for are available at UDOT's Open Data Portal for download.This service is specially configured for use with UDOT's Open Data Portal. Please see the Data Assessment Form for more information. To download either the Rounded or Unrounded AADT for this data please visit the and download the available Shapefile and CSV's.</gco:CharacterString>
+            </abstract>
+            <purpose>
+                <gco:CharacterString>Traffic Information on Utah Roads.</gco:CharacterString>
+            </purpose>
+            <credit>
+                <gco:CharacterString>UDOT - GIS</gco:CharacterString>
+            </credit>
+            <descriptiveKeywords>
+                <MD_Keywords>
+                    <keyword>
+                        <gco:CharacterString>UDOT</gco:CharacterString>
+                    </keyword>
+                    <keyword>
+                        <gco:CharacterString>AADT</gco:CharacterString>
+                    </keyword>
+                    <keyword>
+                        <gco:CharacterString>Annual Average Daily Traffic</gco:CharacterString>
+                    </keyword>
+                    <keyword>
+                        <gco:CharacterString>CCS</gco:CharacterString>
+                    </keyword>
+                    <keyword>
+                        <gco:CharacterString>Continuous Count Station</gco:CharacterString>
+                    </keyword>
+                    <keyword>
+                        <gco:CharacterString>Truck</gco:CharacterString>
+                    </keyword>
+                    <keyword>
+                        <gco:CharacterString>Traffic</gco:CharacterString>
+                    </keyword>
+                    <keyword>
+                        <gco:CharacterString>Unrounded</gco:CharacterString>
+                    </keyword>
+                </MD_Keywords>
+            </descriptiveKeywords>
+            <resourceConstraints>
+                <MD_Constraints>
+                    <useLimitation>
+                        <gco:CharacterString>This data is for informational purposes and must be field verified prior to being used on a project.UDOT makes no warranty with respect to the accuracy, completeness or usefulness of this content or consequential damages resulting from the use or misuse of the content or any of the information contained herein. Please contact the UDOT GIS Department at udotgis@utah.gov for more information.</gco:CharacterString>
+                    </useLimitation>
+                </MD_Constraints>
+            </resourceConstraints>
+            <language gco:nilReason="missing"/>
+            <characterSet>
+                <MD_CharacterSetCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#MD_CharacterSetCode" codeListValue="utf8" codeSpace="ISOTC211/19115">utf8</MD_CharacterSetCode>
+            </characterSet>
+        </MD_DataIdentification>
+    </identificationInfo>
+</MD_Metadata>
