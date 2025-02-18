@@ -383,8 +383,8 @@ def calc_lts(row):
     # Calculate level of traffic stress adapted from 
 
     local_roads = ['11','12','13','14','15','16','17','18', '99']
-    major_roads = ['8','9','10']
-    highways = ['1','2','3','4','5','6','7']
+    major_roads = ['6','8','9','10']
+    highways = ['1','2','3','4','5','7']
 
     cartocode = row["CARTOCODE"]
     aadt = row["AADT2023"]
@@ -395,7 +395,7 @@ def calc_lts(row):
     else:
         facility_type = row['PlannedFacility1']
 
-    
+
     #==================
     # Trail & Pathway
     #==================
@@ -486,7 +486,7 @@ def calc_lts(row):
         elif cartocode in major_roads: 
             if aadt <= 10000:
                 if speed <= 25:
-                    return 2
+                    return 1
                 elif speed >= 30 and speed <= 35:
                     return 2
                 elif speed >= 40 and speed <= 45:
@@ -567,6 +567,63 @@ def calc_lts(row):
                 return 4
             elif speed >= 50:
                 return 4
+            
+    #==================
+    # No Facility
+    #==================
+
+    elif 'Not Available' in facility_type:
+    # local roads
+        if cartocode in local_roads: 
+            if aadt <= 2500:
+                if speed <= 25:
+                    return 2
+                elif speed >= 30 and speed <= 35:
+                    return 3
+                elif speed >= 40 and speed <= 45:
+                    return 4
+                elif speed >= 50:
+                    return 4
+            elif aadt >= 2500:
+                if speed <= 25:
+                    return 3
+                elif speed >= 30 and speed <= 35:
+                    return 3
+                elif speed >= 40 and speed <= 45:
+                    return 4
+                elif speed >= 50:
+                    return 4       
+        # major roads
+        elif cartocode in major_roads: 
+            if aadt <= 5000:
+                if speed <= 25:
+                    return 3
+                elif speed >= 30 and speed <= 35:
+                    return 4
+                elif speed >= 40 and speed <= 45:
+                    return 4
+                elif speed >= 50:
+                    return 4
+            elif aadt >= 5000:
+                if speed <= 25:
+                    return 4
+                elif speed >= 30 and speed <= 35:
+                    return 4
+                elif speed >= 40 and speed <= 45:
+                    return 4
+                elif speed >= 50:
+                    return 4
+        # highways    
+        elif cartocode in highways: 
+            if speed <= 25:
+                return 4
+            elif speed >= 30 and speed <= 35:
+                return 4
+            elif speed >= 40 and speed <= 45:
+                return 4
+            elif speed >= 50:
+                return 4
+
 
 
 def zipdir(path, ziph, ext=None):
@@ -616,8 +673,10 @@ def process_data():
 
     # pull down data layers from AGOL with predefined filter
     print('--retrieving data layers')
-    roads_lyr = arcpy.MakeFeatureLayer_management(roads, 'roads_lyr', where_clause=""" (((BIKE_L IS NOT NULL AND BIKE_L NOT IN ('', ' ')) OR (BIKE_R IS NOT NULL AND BIKE_R NOT IN ('', ' '))) OR ((BIKE_PLN_L IS NOT NULL AND BIKE_PLN_L NOT IN ('', ' ')) OR (BIKE_PLN_R IS NOT NULL AND BIKE_PLN_R NOT IN ('', ' ')))) """)
-    trails_lyr = arcpy.MakeFeatureLayer_management(trails, 'trails_lyr', where_clause=""" CartoCode IN ('3 - Paved Shared Use', '8 - Bridge, Tunnel') """) # removed 9 - Link
+    # roads_lyr = arcpy.MakeFeatureLayer_management(roads, 'roads_lyr', where_clause=""" (((BIKE_L IS NOT NULL AND BIKE_L NOT IN ('', ' ')) OR (BIKE_R IS NOT NULL AND BIKE_R NOT IN ('', ' '))) OR ((BIKE_PLN_L IS NOT NULL AND BIKE_PLN_L NOT IN ('', ' ')) OR (BIKE_PLN_R IS NOT NULL AND BIKE_PLN_R NOT IN ('', ' ')))) """)
+
+    roads_lyr = arcpy.MakeFeatureLayer_management(roads, 'roads_lyr', where_clause=""" (COUNTY_L IN ('49035', '49057', '49003', '49045', '49049') Or COUNTY_R IN ('49003', '49011', '49035', '49049', '49057', '49045')) And CARTOCODE NOT IN ('1', '7', '17', '16', '99') """)
+    trails_lyr = arcpy.MakeFeatureLayer_management(trails, 'trails_lyr', where_clause=""" (CartoCode IN ('3 - Paved Shared Use', '8 - Bridge, Tunnel')) And (Status NOT IN ('CLOSED', 'PROPOSED', 'UPGRADE')) """) # removed 9 - Link
 
     # filter the layers by the counties of interest
     arcpy.management.SelectLayerByLocation(roads_lyr, 'INTERSECT',  counties)
@@ -670,15 +729,32 @@ def process_data():
     bf_cities_sj = arcpy.SpatialJoin_analysis(target_features, join_features, output_features,'JOIN_ONE_TO_ONE', "KEEP_ALL", fieldmappings, match_option="HAVE_THEIR_CENTER_IN")
     bf_cities_sj_df = pd.DataFrame.spatial.from_featureclass(bf_cities_sj[0])[['UID','CITY']].copy()
 
+    #===================================
+    # spatial join for counties attribute
+    #===================================
+
+    target_features = bike_features 
+    join_features = counties
+    output_features = os.path.join(scratch_gdb, "bf_counties_sj")
+    fieldmappings = arcpy.FieldMappings()
+    fieldmappings.addTable(target_features)
+    fieldmappings.addTable(join_features)
+    bf_counties_sj = arcpy.SpatialJoin_analysis(target_features, join_features, output_features,'JOIN_ONE_TO_ONE', "KEEP_ALL", fieldmappings, match_option="HAVE_THEIR_CENTER_IN")
+    bf_counties_sj_df = pd.DataFrame.spatial.from_featureclass(bf_counties_sj[0])[['UID','NAME']].copy()
+    bf_counties_sj_df.columns = ['UID','COUNTY']
+
+    #===================================
     # add directionality to line features
+    #===================================
+    
     print('--computing directional mean')
     bf_dm = arcpy.stats.DirectionalMean(bike_features, os.path.join(scratch_gdb, "bike_features_directional_mean"), "DIRECTION", "UID")
     bf_dm_df = pd.DataFrame.spatial.from_featureclass(bf_dm[0])[['UID', 'CompassA']].copy()
 
     # data formatting
     bike_features_df = pd.DataFrame.spatial.from_featureclass(bike_features[0])
-    bf_all = bike_features_df.merge(bf_dm_df, on='UID', how='left').merge(bf_cities_sj_df, on='UID', how='left').merge(aadt_sj_df, on='UID', how='left')
-    bf_all = bf_all[['UID', 'Status','CartoCode', 'FULLNAME', 'PrimaryName',  'BIKE_L','BIKE_R','BIKE_PLN_L','BIKE_PLN_R', 'MERGE_SRC', 'SPEED_LMT', 'AADT2023', 'CompassA', 'CITY', 'County','GlobalID', 'SHAPE']]
+    bf_all = bike_features_df.merge(bf_dm_df, on='UID', how='left').merge(bf_cities_sj_df, on='UID', how='left').merge(bf_counties_sj_df, on='UID', how='left').merge(aadt_sj_df, on='UID', how='left')
+    bf_all = bf_all[['UID', 'Status','CartoCode', 'FULLNAME', 'PrimaryName',  'BIKE_L','BIKE_R','BIKE_PLN_L','BIKE_PLN_R', 'MERGE_SRC', 'SPEED_LMT', 'AADT2023', 'CompassA', 'CITY','GlobalID', 'SHAPE']]
     bf_all.loc[(bf_all['MERGE_SRC'] == 'trails_lyr') & (bf_all['Status'].isin(['Future', 'Proposed', 'PROPOSED'])==False), 'BIKE_L'] = 'TrPw'
     bf_all.loc[(bf_all['MERGE_SRC'] == 'trails_lyr') & (bf_all['Status'].isin(['Future', 'Proposed', 'PROPOSED'])==False), 'BIKE_R'] = 'TrPw'
 
@@ -700,11 +776,13 @@ def process_data():
     bf_all_processed = bf_all.apply(determine_primary_bike_feature_and_side, axis=1)
 
     # data formatting, split existing and planned features
-    bf_all_processed.rename({'CartoCode':'CARTOCODE', 'County':'COUNTY', 'GlobalID':'SOURCE_ID'},axis=1, inplace=True)
+    bf_all_processed.rename({'CartoCode':'CARTOCODE', 'GlobalID':'SOURCE_ID'},axis=1, inplace=True)
     bf_all_processed['NOTES'] = np.nan
+    bf_all_processed.spatial.to_featureclass(location=os.path.join(scratch_gdb, 'bf_all_processed'), sanitize_columns=False)
+
     planned_bf = bf_all_processed[(bf_all_processed['PlannedFacility1'] != 'Not Available') & (bf_all_processed['PlannedFacility2'] != 'Not Available')].copy()
-    existing_bf = bf_all_processed[(bf_all_processed['Facility1'] != 'Not Available') & (bf_all_processed['Facility2'] != 'Not Available')].copy()
-    
+    existing_bf = bf_all_processed.copy()
+
     existing_bf.drop(['PlannedFacility1','PlannedFacility2', 'PlannedFacility1_Side', 'PlannedFacility2_Side'], axis=1, inplace=True)
     planned_bf.drop(['Facility1','Facility2', 'Facility1_Side', 'Facility2_Side'], axis=1, inplace=True)
 
@@ -723,8 +801,8 @@ def process_data():
     existing_bf["LTS_SCORE"] = existing_bf["LTS_SCORE"].map(lts_codes)
     planned_bf["LTS_SCORE"] = planned_bf["LTS_SCORE"].map(lts_codes)
 
-    planned_bf.spatial.to_featureclass(location=os.path.join(scratch_gdb, 'draft_planned_bike_features'), sanitize_columns=False)
-    existing_bf.spatial.to_featureclass(location=os.path.join(scratch_gdb, 'draft_bike_features'), sanitize_columns=False)
+    # planned_bf.spatial.to_featureclass(location=os.path.join(scratch_gdb, 'draft_planned_bike_features'), sanitize_columns=False)
+    # existing_bf.spatial.to_featureclass(location=os.path.join(scratch_gdb, 'draft_bike_features'), sanitize_columns=False)
 
     planned_bf = planned_bf[['UID', 'CITY', 'COUNTY', 'NAME', 'PlannedFacility1','PlannedFacility2', 'PlannedFacility1_Side', 'PlannedFacility2_Side', 'LTS_SCORE', 'NOTES', 'CARTOCODE', 'SOURCE', 'SOURCE_ID', 'SHAPE']].copy()
     existing_bf = existing_bf[['UID', 'CITY', 'COUNTY', 'NAME', 'Facility1','Facility2', 'Facility1_Side', 'Facility2_Side', 'LTS_SCORE','NOTES', 'CARTOCODE', 'SOURCE', 'SOURCE_ID', 'SHAPE']].copy()
