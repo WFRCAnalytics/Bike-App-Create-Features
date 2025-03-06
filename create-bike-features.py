@@ -667,8 +667,10 @@ def process_data():
     # store paths to datasets
     roads = 'https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/UtahRoads/FeatureServer/0'
     trails = 'https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/TrailsAndPathways/FeatureServer/0'
+    # roads = r'E:\Data\Transportation\Roads.gdb\Roads'
+    # trails = r'E:\Data\Transportation\Trails_Pathways.gdb\TrailsAndPathways'
     aadt = r'.\Inputs\AADT_Unrounded.shp'
-    counties = r'.\Inputs\WFRC_MPO_AOG_Counties.shp'
+    counties = r'.\Inputs\Counties.shp'
     cities = r'.\Inputs\Cities.shp'
 
     # pull down data layers from AGOL with predefined filter
@@ -687,7 +689,7 @@ def process_data():
     bike_features = arcpy.management.Merge([trails_lyr,roads_lyr], output=os.path.join(scratch_gdb, 'bike_features'), add_source='ADD_SOURCE_INFO')
     arcpy.management.AddField(bike_features, 'UID', "LONG")
     arcpy.management.CalculateField(bike_features, "UID", '!OBJECTID!', "PYTHON3")
-    
+
     # Create AADT Buffer layer
     aadt_lyr = arcpy.MakeFeatureLayer_management(aadt, 'aadt_lyr', where_clause=""" RT_Type <> 'State Route' """)
     aadt_buffer = arcpy.analysis.Buffer(aadt_lyr, os.path.join(scratch_gdb, 'aadt_buffer'), "8 Feet", "FULL", "ROUND")
@@ -729,9 +731,9 @@ def process_data():
     bf_cities_sj = arcpy.SpatialJoin_analysis(target_features, join_features, output_features,'JOIN_ONE_TO_ONE', "KEEP_ALL", fieldmappings, match_option="HAVE_THEIR_CENTER_IN")
     bf_cities_sj_df = pd.DataFrame.spatial.from_featureclass(bf_cities_sj[0])[['UID','CITY']].copy()
 
-    #===================================
+    #=====================================
     # spatial join for counties attribute
-    #===================================
+    #=====================================
 
     target_features = bike_features 
     join_features = counties
@@ -740,7 +742,7 @@ def process_data():
     fieldmappings.addTable(target_features)
     fieldmappings.addTable(join_features)
     bf_counties_sj = arcpy.SpatialJoin_analysis(target_features, join_features, output_features,'JOIN_ONE_TO_ONE', "KEEP_ALL", fieldmappings, match_option="HAVE_THEIR_CENTER_IN")
-    bf_counties_sj_df = pd.DataFrame.spatial.from_featureclass(bf_counties_sj[0])[['UID','NAME']].copy()
+    bf_counties_sj_df = pd.DataFrame.spatial.from_featureclass(bf_counties_sj[0])[['UID','CNTY_NAME']].copy()
     bf_counties_sj_df.columns = ['UID','COUNTY']
 
     #===================================
@@ -754,7 +756,7 @@ def process_data():
     # data formatting
     bike_features_df = pd.DataFrame.spatial.from_featureclass(bike_features[0])
     bf_all = bike_features_df.merge(bf_dm_df, on='UID', how='left').merge(bf_cities_sj_df, on='UID', how='left').merge(bf_counties_sj_df, on='UID', how='left').merge(aadt_sj_df, on='UID', how='left')
-    bf_all = bf_all[['UID', 'Status','CartoCode', 'FULLNAME', 'PrimaryName',  'BIKE_L','BIKE_R','BIKE_PLN_L','BIKE_PLN_R', 'MERGE_SRC', 'SPEED_LMT', 'AADT2023', 'CompassA', 'CITY','GlobalID', 'SHAPE']]
+    bf_all = bf_all[['UID', 'Status','CartoCode', 'FULLNAME', 'PrimaryName',  'BIKE_L','BIKE_R','BIKE_PLN_L','BIKE_PLN_R', 'MERGE_SRC', 'SPEED_LMT', 'AADT2023', 'CompassA', 'CITY', 'COUNTY','GlobalID', 'SHAPE']]
     bf_all.loc[(bf_all['MERGE_SRC'] == 'trails_lyr') & (bf_all['Status'].isin(['Future', 'Proposed', 'PROPOSED'])==False), 'BIKE_L'] = 'TrPw'
     bf_all.loc[(bf_all['MERGE_SRC'] == 'trails_lyr') & (bf_all['Status'].isin(['Future', 'Proposed', 'PROPOSED'])==False), 'BIKE_R'] = 'TrPw'
 
@@ -809,8 +811,29 @@ def process_data():
 
     # export as geodatabase feature class
     print('--exporting data layers')
-    planned_bf.spatial.to_featureclass(location=os.path.join(planned_features_gdb, 'planned_bike_features'), sanitize_columns=False)
-    existing_bf.spatial.to_featureclass(location=os.path.join(existing_features_gdb, 'bike_features'), sanitize_columns=False)
+    existing_bf.spatial.to_featureclass(location=os.path.join(scratch_gdb, 'bike_features_before_dissolve'), sanitize_columns=False)
+    planned_bf.spatial.to_featureclass(location=os.path.join(scratch_gdb, 'planned_bike_features_before_dissolve'), sanitize_columns=False)
+    
+    # dissolve common links
+    arcpy.management.Dissolve(
+    in_features=os.path.join(scratch_gdb, 'bike_features_before_dissolve'),
+    out_feature_class=os.path.join(existing_features_gdb, 'bike_features'),
+    dissolve_field="CITY;COUNTY;NAME;Facility1;Facility2;LTS_SCORE;CARTOCODE",
+    statistics_fields=None,
+    multi_part="SINGLE_PART",
+    unsplit_lines="UNSPLIT_LINES",
+    concatenation_separator=""
+    )
+
+    arcpy.management.Dissolve(
+    in_features=os.path.join(scratch_gdb, 'planned_bike_features_before_dissolve'),
+    out_feature_class=os.path.join(planned_features_gdb, 'planned_bike_features'),
+    dissolve_field="CITY;COUNTY;NAME;PlannedFacility1;PlannedFacility2;LTS_SCORE;CARTOCODE",
+    statistics_fields=None,
+    multi_part="SINGLE_PART",
+    unsplit_lines="UNSPLIT_LINES",
+    concatenation_separator=""
+    )
 
     del planned_bf
     del existing_bf
