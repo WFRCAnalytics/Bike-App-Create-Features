@@ -677,8 +677,8 @@ def process_data():
     print('--retrieving data layers')
     # roads_lyr = arcpy.MakeFeatureLayer_management(roads, 'roads_lyr', where_clause=""" (((BIKE_L IS NOT NULL AND BIKE_L NOT IN ('', ' ')) OR (BIKE_R IS NOT NULL AND BIKE_R NOT IN ('', ' '))) OR ((BIKE_PLN_L IS NOT NULL AND BIKE_PLN_L NOT IN ('', ' ')) OR (BIKE_PLN_R IS NOT NULL AND BIKE_PLN_R NOT IN ('', ' ')))) """)
 
-    roads_lyr = arcpy.MakeFeatureLayer_management(roads, 'roads_lyr', where_clause=""" (COUNTY_L IN ('49035', '49057', '49003', '49045', '49049') Or COUNTY_R IN ('49003', '49011', '49035', '49049', '49057', '49045')) And CARTOCODE NOT IN ('1', '7', '17', '16', '99') """)
-    trails_lyr = arcpy.MakeFeatureLayer_management(trails, 'trails_lyr', where_clause=""" (CartoCode IN ('3 - Paved Shared Use', '8 - Bridge, Tunnel')) And (Status NOT IN ('CLOSED', 'PROPOSED', 'UPGRADE')) """) # removed 9 - Link
+    roads_lyr = arcpy.MakeFeatureLayer_management(roads, 'roads_lyr', where_clause="""(COUNTY_L IN ('49035', '49057', '49003', '49045', '49049') Or COUNTY_R IN ('49003', '49011', '49035', '49049', '49057', '49045')) And CARTOCODE NOT IN ('1', '7', '17', '16', '99')""")
+    trails_lyr = arcpy.MakeFeatureLayer_management(trails, 'trails_lyr', where_clause="""(CartoCode IN ('3 - Paved Shared Use', '3 - Shared Use Path', '8 - Bridge, Tunnel')) And (Status NOT IN ('CLOSED', 'PROPOSED', 'UPGRADE'))""") # removed 9 - Link
 
     # filter the layers by the counties of interest
     arcpy.management.SelectLayerByLocation(roads_lyr, 'INTERSECT',  counties)
@@ -818,22 +818,28 @@ def process_data():
     arcpy.management.Dissolve(
     in_features=os.path.join(scratch_gdb, 'bike_features_before_dissolve'),
     out_feature_class=os.path.join(existing_features_gdb, 'bike_features'),
-    dissolve_field="CITY;COUNTY;NAME;Facility1;Facility2;LTS_SCORE;CARTOCODE",
-    statistics_fields=None,
+    dissolve_field="CITY;COUNTY;NAME;Facility1;Facility2;Facility1_Side;Facility2_Side;LTS_SCORE;CARTOCODE;NOTES;SOURCE",
+    # statistics_fields=[['SOURCE_ID','CONCATENATE']],
     multi_part="SINGLE_PART",
     unsplit_lines="UNSPLIT_LINES",
-    concatenation_separator=""
+    # concatenation_separator=";"
     )
+
+    # arcpy.management.AddField(os.path.join(existing_features_gdb, 'bike_features'), 'SOURCE_ID', "TEXT")
+    # arcpy.management.CalculateField(os.path.join(existing_features_gdb, 'bike_features'), "SOURCE_ID", '!CONCATENATE_SOURCE_ID!', "PYTHON3")
 
     arcpy.management.Dissolve(
     in_features=os.path.join(scratch_gdb, 'planned_bike_features_before_dissolve'),
     out_feature_class=os.path.join(planned_features_gdb, 'planned_bike_features'),
-    dissolve_field="CITY;COUNTY;NAME;PlannedFacility1;PlannedFacility2;LTS_SCORE;CARTOCODE",
-    statistics_fields=None,
+    dissolve_field="CITY;COUNTY;NAME;PlannedFacility1;PlannedFacility2;PlannedFacility1_Side;PlannedFacility2_Side;LTS_SCORE;CARTOCODE;NOTES;SOURCE",
+    # statistics_fields=[['SOURCE_ID','CONCATENATE']],
     multi_part="SINGLE_PART",
     unsplit_lines="UNSPLIT_LINES",
-    concatenation_separator=""
+    # concatenation_separator=";"
     )
+
+    # arcpy.management.AddField(os.path.join(existing_features_gdb, 'planned_bike_features'), 'SOURCE_ID', "TEXT")
+    # arcpy.management.CalculateField(os.path.join(existing_features_gdb, 'planned_bike_features'), "SOURCE_ID", '!CONCATENATE_SOURCE_ID!', "PYTHON3")
 
     del planned_bf
     del existing_bf
