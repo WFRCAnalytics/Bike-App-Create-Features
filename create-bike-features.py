@@ -23,6 +23,7 @@ import pandas as pd
 import numbers
 import zipfile
 import sys
+import subprocess
 
 def determine_direction_from_angle(angle):
     '''determines from cardinal direction from a provided angle'''
@@ -847,7 +848,9 @@ def process_data():
     del existing_features_gdb
 
     # Restart the script to zip the GDBs in a new process
-    os.execv(sys.executable, [sys.executable] + sys.argv + ["zip"])
+    # os.execv(sys.executable, [sys.executable] + sys.argv + ["zip"])
+    subprocess.Popen([sys.executable] + sys.argv + ["zip"], close_fds=True)
+    sys.exit()
 
 def zip_gdb():
 
@@ -871,7 +874,7 @@ def zip_gdb():
 
     print('--finished zipping outputs')
 
-
+# runs the processing script first, then exits to release locks on files, then relaunches to zip the files
 if len(sys.argv) > 1 and sys.argv[1] == "zip":
     zip_gdb()
     print('--scripts finished')
