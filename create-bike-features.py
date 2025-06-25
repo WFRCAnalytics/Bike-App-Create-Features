@@ -666,10 +666,11 @@ def process_data():
 
 
     # store paths to datasets
-    roads = 'https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/UtahRoads/FeatureServer/0'
-    trails = 'https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/TrailsAndPathways/FeatureServer/0'
-    # roads = r'E:\Data\Transportation\Roads.gdb\Roads'
-    # trails = r'E:\Data\Transportation\Trails_Pathways.gdb\TrailsAndPathways'
+    # roads = 'https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/UtahRoads/FeatureServer/0'
+    # trails = 'https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/TrailsAndPathways/FeatureServer/0'
+    roads = r'E:\Data\Transportation\Roads.gdb\Roads'
+    # roads = r'C:\Users\jreynolds\Downloads\UTRANS_Bike_updates_20250331.gdb\UTRANS_Roads_SLCo'
+    trails = r'E:\Data\Transportation\Trails_Pathways.gdb\TrailsAndPathways'
     aadt = r'.\Inputs\AADT_Unrounded.shp'
     counties = r'.\Inputs\Counties.shp'
     cities = r'.\Inputs\Cities.shp'
@@ -679,7 +680,15 @@ def process_data():
     # roads_lyr = arcpy.MakeFeatureLayer_management(roads, 'roads_lyr', where_clause=""" (((BIKE_L IS NOT NULL AND BIKE_L NOT IN ('', ' ')) OR (BIKE_R IS NOT NULL AND BIKE_R NOT IN ('', ' '))) OR ((BIKE_PLN_L IS NOT NULL AND BIKE_PLN_L NOT IN ('', ' ')) OR (BIKE_PLN_R IS NOT NULL AND BIKE_PLN_R NOT IN ('', ' ')))) """)
 
     roads_lyr = arcpy.MakeFeatureLayer_management(roads, 'roads_lyr', where_clause="""(COUNTY_L IN ('49035', '49057', '49003', '49045', '49049') Or COUNTY_R IN ('49003', '49011', '49035', '49049', '49057', '49045')) And CARTOCODE NOT IN ('1', '7', '17', '16', '99')""")
+<<<<<<< HEAD
+<<<<<<< HEAD
+    trails_lyr = arcpy.MakeFeatureLayer_management(trails, 'trails_lyr', where_clause="""(CartoCode IN ('3 - Paved Shared Use', '3 - Shared Use Path', '4 - Biking Only', '8 - Bridge, Tunnel')) And (Status NOT IN ('CLOSED', 'PROPOSED', 'UPGRADE'))""") # removed 9 - Link
+=======
     trails_lyr = arcpy.MakeFeatureLayer_management(trails, 'trails_lyr', where_clause="""(CartoCode IN ('3 - Paved Shared Use', '3 - Shared Use Path', '8 - Bridge, Tunnel')) And (Status NOT IN ('CLOSED', 'PROPOSED', 'UPGRADE'))""") # removed 9 - Link
+>>>>>>> 78521e3403a7dbcd3b7641b900b3048cfb511116
+=======
+    trails_lyr = arcpy.MakeFeatureLayer_management(trails, 'trails_lyr', where_clause="""(CartoCode IN ('3 - Paved Shared Use', '3 - Shared Use Path', '8 - Bridge, Tunnel')) And (Status NOT IN ('CLOSED', 'PROPOSED', 'UPGRADE'))""") # removed 9 - Link
+>>>>>>> 78521e3403a7dbcd3b7641b900b3048cfb511116
 
     # filter the layers by the counties of interest
     arcpy.management.SelectLayerByLocation(roads_lyr, 'INTERSECT',  counties)
@@ -745,6 +754,7 @@ def process_data():
     bf_counties_sj = arcpy.SpatialJoin_analysis(target_features, join_features, output_features,'JOIN_ONE_TO_ONE', "KEEP_ALL", fieldmappings, match_option="HAVE_THEIR_CENTER_IN")
     bf_counties_sj_df = pd.DataFrame.spatial.from_featureclass(bf_counties_sj[0])[['UID','CNTY_NAME']].copy()
     bf_counties_sj_df.columns = ['UID','COUNTY']
+    
 
     #===================================
     # add directionality to line features
@@ -756,8 +766,13 @@ def process_data():
 
     # data formatting
     bike_features_df = pd.DataFrame.spatial.from_featureclass(bike_features[0])
+    
+    
+        
     bf_all = bike_features_df.merge(bf_dm_df, on='UID', how='left').merge(bf_cities_sj_df, on='UID', how='left').merge(bf_counties_sj_df, on='UID', how='left').merge(aadt_sj_df, on='UID', how='left')
-    bf_all = bf_all[['UID', 'Status','CartoCode', 'FULLNAME', 'PrimaryName',  'BIKE_L','BIKE_R','BIKE_PLN_L','BIKE_PLN_R', 'MERGE_SRC', 'SPEED_LMT', 'AADT2023', 'CompassA', 'CITY', 'COUNTY','GlobalID', 'SHAPE']]
+    bf_all.rename({'status':'Status', 'primaryname':'PrimaryName', 'cartocode':'CartoCode','class':'Class','globalid':'GlobalID' }, axis=1, inplace=True) # REMOVE ME
+    bf_all = bf_all[['UID', 'Status','CartoCode', 'Class', 'FULLNAME', 'PrimaryName',  'BIKE_L','BIKE_R','BIKE_PLN_L','BIKE_PLN_R', 'MERGE_SRC', 'SPEED_LMT', 'AADT2023', 'CompassA', 'CITY', 'COUNTY','GlobalID', 'SHAPE']].copy()
+
     bf_all.loc[(bf_all['MERGE_SRC'] == 'trails_lyr') & (bf_all['Status'].isin(['Future', 'Proposed', 'PROPOSED'])==False), 'BIKE_L'] = 'TrPw'
     bf_all.loc[(bf_all['MERGE_SRC'] == 'trails_lyr') & (bf_all['Status'].isin(['Future', 'Proposed', 'PROPOSED'])==False), 'BIKE_R'] = 'TrPw'
 
@@ -773,23 +788,36 @@ def process_data():
     bf_all.loc[bf_all['MERGE_SRC'].isin(['roads_lyr']) == True, 'NAME'] = bf_all['FULLNAME']
     bf_all.loc[bf_all['MERGE_SRC'].isin(['trails_lyr']) == True, 'NAME'] = bf_all['PrimaryName']
 
+    # reclassify links
+    bf_all.loc[(bf_all['MERGE_SRC'] == 'trails_lyr') & (bf_all['Status'].isin(['Construction', 'Planned', 'Proposed', 'Retired'])==False) & (bf_all['Class']=='Link'), 'CartoCode'] = '9'
+
     # determine the bike feature order and side
     print('--determining primary bike feature and side')
-    bf_all = bf_all[bf_all['CompassA'].isnull() != True] # get rid of circles
-    bf_all_processed = bf_all.apply(determine_primary_bike_feature_and_side, axis=1)
+    bf_all = bf_all[bf_all['CompassA'].isnull() != True].copy() # get rid of circles
+    bf_all_processed = bf_all.apply(determine_primary_bike_feature_and_side, axis=1).copy()
+    print('--completed determining primary bike feature and side')
 
     # data formatting, split existing and planned features
     bf_all_processed.rename({'CartoCode':'CARTOCODE', 'GlobalID':'SOURCE_ID'},axis=1, inplace=True)
-    bf_all_processed['NOTES'] = np.nan
+    bf_all_processed['NOTES'] = ''
+
+    bf_all_processed.spatial.set_geometry('SHAPE')
+    bf_all_processed['LENGTH'] = GeoSeriesAccessor(bf_all_processed['SHAPE']).length
+
+    # drop duplicate roads (some roads in the centerlines dataset require dual representation at municipal boundaries)
+    bf_all_processed = bf_all_processed.drop_duplicates(['CARTOCODE','FULLNAME', 'BIKE_L', 'BIKE_R', 'BIKE_PLN_L', 'BIKE_PLN_R',  'SPEED_LMT', 'CITY', 'COUNTY', 'LENGTH'] , keep='first').copy()
+
+    print('--exporting all bf all processed')
     bf_all_processed.spatial.to_featureclass(location=os.path.join(scratch_gdb, 'bf_all_processed'), sanitize_columns=False)
 
+    # separate into existing and planned
     planned_bf = bf_all_processed[(bf_all_processed['PlannedFacility1'] != 'Not Available') & (bf_all_processed['PlannedFacility2'] != 'Not Available')].copy()
     existing_bf = bf_all_processed.copy()
-
     existing_bf.drop(['PlannedFacility1','PlannedFacility2', 'PlannedFacility1_Side', 'PlannedFacility2_Side'], axis=1, inplace=True)
     planned_bf.drop(['Facility1','Facility2', 'Facility1_Side', 'Facility2_Side'], axis=1, inplace=True)
 
     # calculate level of traffic stress
+    print('--calculating level of stress')
     existing_bf["LTS_SCORE"] = existing_bf.apply(calc_lts, axis=1)
     planned_bf["LTS_SCORE"] = planned_bf.apply(calc_lts, axis=1)
 
@@ -807,9 +835,43 @@ def process_data():
     # planned_bf.spatial.to_featureclass(location=os.path.join(scratch_gdb, 'draft_planned_bike_features'), sanitize_columns=False)
     # existing_bf.spatial.to_featureclass(location=os.path.join(scratch_gdb, 'draft_bike_features'), sanitize_columns=False)
 
-    planned_bf = planned_bf[['UID', 'CITY', 'COUNTY', 'NAME', 'PlannedFacility1','PlannedFacility2', 'PlannedFacility1_Side', 'PlannedFacility2_Side', 'LTS_SCORE', 'NOTES', 'CARTOCODE', 'SOURCE', 'SOURCE_ID', 'SHAPE']].copy()
-    existing_bf = existing_bf[['UID', 'CITY', 'COUNTY', 'NAME', 'Facility1','Facility2', 'Facility1_Side', 'Facility2_Side', 'LTS_SCORE','NOTES', 'CARTOCODE', 'SOURCE', 'SOURCE_ID', 'SHAPE']].copy()
 
+    bike_facility_name_lookup = {
+    '1A':'Cycle track, at-grade, protected with parking (1A)',
+    '1B':'Cycle track, protected with barrier (1B)',
+    '1C':'Cycle track, raised and curb separated (1C)',
+    '1D':'Cycle track, bi-directional (1D',
+    '1E':'Cycle track, center-running (1E)',
+    '2A':'Buffered bike lane (2A)',
+    '2B':'Bike lane (2B)',
+    '2C':'Bi-directional buffered bike lane (2C)',
+    '3A':'Shoulder bikeway (3A)',
+    '3B':'Marked shared roadway (3B)',
+    '3C':'Signed shared roadway (3C)',
+    '1':'Cycle track, unspecified (1)',
+    '2':'Bike lane, unspecified (2)',
+    '3':'Other bike route, unspecified (3)',
+    'PP':'Parallel Bike Path, Paved (PP)',
+    'PU':'Parallel Bike Path, Unpaved (PU)',
+    'UN':'Unknown Category (UN)',
+    'TrPw':'Trail or Pathway',
+    'NA': 'Not Available'
+    }
+
+    existing_bf['BIKE_L'] = existing_bf['BIKE_L'].map(bike_facility_name_lookup)
+    existing_bf['BIKE_R'] = existing_bf['BIKE_R'].map(bike_facility_name_lookup)
+    planned_bf['BIKE_PLN_L'] = planned_bf['BIKE_PLN_L'].map(bike_facility_name_lookup)
+    planned_bf['BIKE_PLN_R'] = planned_bf['BIKE_PLN_R'].map(bike_facility_name_lookup)
+
+    
+    # existing_bf.spatial.to_featureclass(location=os.path.join(scratch_gdb, 'bike_features_before_dissolve'), sanitize_columns=False)
+    # planned_bf.spatial.to_featureclass(location=os.path.join(scratch_gdb, 'planned_bike_features_before_dissolve'), sanitize_columns=False)
+
+    # subset columns
+    planned_bf = planned_bf[['UID', 'CITY', 'COUNTY', 'NAME', 'PlannedFacility1','PlannedFacility2', 'PlannedFacility1_Side', 'PlannedFacility2_Side', 'LTS_SCORE', 'BIKE_PLN_L','BIKE_PLN_R', 'NOTES', 'CARTOCODE', 'SOURCE', 'SOURCE_ID', 'SHAPE']].copy()
+    existing_bf = existing_bf[['UID', 'CITY', 'COUNTY', 'NAME', 'Facility1','Facility2', 'Facility1_Side', 'Facility2_Side', 'LTS_SCORE', 'BIKE_L','BIKE_R','NOTES', 'CARTOCODE', 'SOURCE', 'SOURCE_ID', 'SHAPE']].copy()
+
+    
     # export as geodatabase feature class
     print('--exporting data layers')
     existing_bf.spatial.to_featureclass(location=os.path.join(scratch_gdb, 'bike_features_before_dissolve'), sanitize_columns=False)
@@ -819,7 +881,15 @@ def process_data():
     arcpy.management.Dissolve(
     in_features=os.path.join(scratch_gdb, 'bike_features_before_dissolve'),
     out_feature_class=os.path.join(existing_features_gdb, 'bike_features'),
+<<<<<<< HEAD
+<<<<<<< HEAD
+    dissolve_field="CITY;COUNTY;NAME;Facility1;Facility2;Facility1_Side;Facility2_Side;LTS_SCORE;CARTOCODE;BIKE_L;BIKE_R;NOTES;SOURCE",
+=======
     dissolve_field="CITY;COUNTY;NAME;Facility1;Facility2;Facility1_Side;Facility2_Side;LTS_SCORE;CARTOCODE;NOTES;SOURCE",
+>>>>>>> 78521e3403a7dbcd3b7641b900b3048cfb511116
+=======
+    dissolve_field="CITY;COUNTY;NAME;Facility1;Facility2;Facility1_Side;Facility2_Side;LTS_SCORE;CARTOCODE;NOTES;SOURCE",
+>>>>>>> 78521e3403a7dbcd3b7641b900b3048cfb511116
     # statistics_fields=[['SOURCE_ID','CONCATENATE']],
     multi_part="SINGLE_PART",
     unsplit_lines="UNSPLIT_LINES",
@@ -832,13 +902,31 @@ def process_data():
     arcpy.management.Dissolve(
     in_features=os.path.join(scratch_gdb, 'planned_bike_features_before_dissolve'),
     out_feature_class=os.path.join(planned_features_gdb, 'planned_bike_features'),
+<<<<<<< HEAD
+<<<<<<< HEAD
+    dissolve_field="CITY;COUNTY;NAME;PlannedFacility1;PlannedFacility2;PlannedFacility1_Side;PlannedFacility2_Side;LTS_SCORE;CARTOCODE;BIKE_PLN_L;BIKE_PLN_R;NOTES;SOURCE",
+=======
     dissolve_field="CITY;COUNTY;NAME;PlannedFacility1;PlannedFacility2;PlannedFacility1_Side;PlannedFacility2_Side;LTS_SCORE;CARTOCODE;NOTES;SOURCE",
+>>>>>>> 78521e3403a7dbcd3b7641b900b3048cfb511116
+=======
+    dissolve_field="CITY;COUNTY;NAME;PlannedFacility1;PlannedFacility2;PlannedFacility1_Side;PlannedFacility2_Side;LTS_SCORE;CARTOCODE;NOTES;SOURCE",
+>>>>>>> 78521e3403a7dbcd3b7641b900b3048cfb511116
     # statistics_fields=[['SOURCE_ID','CONCATENATE']],
     multi_part="SINGLE_PART",
     unsplit_lines="UNSPLIT_LINES",
     # concatenation_separator=";"
     )
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+    # delete duplicate roads (some roads on municipal borders are represented twice)
+    arcpy.management.DeleteIdentical(in_dataset=os.path.join(existing_features_gdb, 'bike_features'),  fields="Shape")
+    arcpy.management.DeleteIdentical(in_dataset=os.path.join(planned_features_gdb, 'planned_bike_features'),  fields="Shape")
+
+=======
+>>>>>>> 78521e3403a7dbcd3b7641b900b3048cfb511116
+=======
+>>>>>>> 78521e3403a7dbcd3b7641b900b3048cfb511116
     # arcpy.management.AddField(os.path.join(existing_features_gdb, 'planned_bike_features'), 'SOURCE_ID', "TEXT")
     # arcpy.management.CalculateField(os.path.join(existing_features_gdb, 'planned_bike_features'), "SOURCE_ID", '!CONCATENATE_SOURCE_ID!', "PYTHON3")
 
